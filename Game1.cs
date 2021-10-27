@@ -7,8 +7,7 @@ public class Game1 : Game
 {
     GraphicsDeviceManager graphics;
     SpriteBatch spriteBatch;
-    readonly Lua lua = new();
-    LuaFunction luaInitialize, luaLoadContent, luaUpdate, luaDraw;
+    LuaEngine luaEngine;
 
     public Game1()
     {
@@ -19,37 +18,31 @@ public class Game1 : Game
     protected override void Initialize()
     {
         spriteBatch = new(GraphicsDevice);
-        lua.LoadCLRPackage();
-        lua["graphicsDevice"] = GraphicsDevice;
-        lua["graphics"] = graphics;
-        lua["content"] = new Content(this, GraphicsDevice);
-        lua["game"] = this;
-        lua.DoFile("lua/main.lua");
-        luaInitialize = lua["Initialize"] as LuaFunction;
-        luaLoadContent = lua["LoadContent"] as LuaFunction;
-        luaUpdate = lua["Update"] as LuaFunction;
-        luaDraw = lua["Draw"] as LuaFunction;
-        luaInitialize?.Call();
-
+        luaEngine = new(this, graphics, spriteBatch);
+        luaEngine.Initialize();
         base.Initialize();
     }
 
     protected override void LoadContent()
     {
-        spriteBatch = new (GraphicsDevice);
-        lua["spriteBatch"] = spriteBatch;
-        luaLoadContent?.Call();
+        luaEngine.LoadContent();
     }
 
     protected override void Update(GameTime gameTime)
     {
-        luaUpdate?.Call(gameTime);
+        luaEngine.Update(gameTime);
         base.Update(gameTime);
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        luaDraw?.Call(gameTime);
+        luaEngine.Draw(gameTime);
         base.Draw(gameTime);
+    }
+
+    protected override void UnloadContent()
+    {
+        luaEngine.Dispose();
+        base.UnloadContent();
     }
 }

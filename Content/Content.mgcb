@@ -25,3 +25,10 @@
 /processorParam:TextureFormat=Color
 /build:logo.png
 
+
+#begin errorfont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:errorfont.spritefont
