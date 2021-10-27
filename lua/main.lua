@@ -17,6 +17,7 @@ function Initialize()
 	position = Vector2(bounds.Width / 2, bounds.Height / 2)
 end
 
+
 function LoadContent()
 	logoTexture = content:LoadTexture2D("logo")
 end
@@ -40,10 +41,14 @@ function MovementDirection(keyboard)
 end
 
 function Update(gameTime)
+	local keyboardState = Keyboard.GetState()
+	if keyboardState:IsKeyDown(Keys.Escape) then
+	    game:Exit()
+	end
+
 	rotation = rotation + 0.01
-	local keyboardState = Keyboard.GetState() 
 	local velocity = MovementDirection(keyboardState) * 2
-	
+
 	position = position + velocity
 end
 

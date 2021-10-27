@@ -26,9 +26,9 @@
 /build:logo.png
 
 
-#begin errorfont.spritefont
+#begin arialfont.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:errorfont.spritefont
+/build:arialfont.spritefont

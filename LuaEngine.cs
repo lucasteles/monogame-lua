@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -18,39 +20,46 @@ public class LuaEngine : IDisposable
     string luaSrc;
 
     FileSystemWatcher watcher = new();
-    Exception currentError = null;
-
+    Exception currentError;
+    bool showedError, reloading, forceReload;
 
     public LuaEngine(Game game, GraphicsDeviceManager graphics, SpriteBatch spriteBatch)
     {
         this.game = game;
         this.graphics = graphics;
         this.spriteBatch = spriteBatch;
-        luaSrc = Path.Combine(Directory.GetCurrentDirectory(), "lua");
+        luaSrc = Path.Combine(GetProjectPath(), "lua");
         ConfigureWatcher();
     }
 
+    bool ShouldWait() => currentError is not null || reloading;
     void ConfigureWatcher()
     {
-        watcher.Filter = "*.lua";
+        watcher.Filter = "*.*";
         watcher.Path = luaSrc;
+        watcher.EnableRaisingEvents = true;
+        watcher.NotifyFilter = NotifyFilters.LastWrite;
         watcher.Created += WatcherHandler;
         watcher.Deleted += WatcherHandler;
-        watcher.Changed += WatcherHandler;
         watcher.Renamed += WatcherHandler;
+        watcher.Changed += WatcherHandler;
     }
 
     void WatcherHandler(object sender, FileSystemEventArgs e)
     {
         Console.WriteLine("RELOADING...");
+        forceReload = true;
         currentError = null;
-        Initialize();
+        showedError = false;
     }
 
-    public void Initialize()
+    public void Initialize(bool fromwatch = false)
     {
+        if (reloading) return;
+        reloading = true;
         try
         {
+            lua?.Dispose();
             lua = new();
             lua.LoadCLRPackage();
             lua["graphicsDevice"] = game.GraphicsDevice;
@@ -65,19 +74,25 @@ public class LuaEngine : IDisposable
             luaUpdate = lua["Update"] as LuaFunction;
             luaDraw = lua["Draw"] as LuaFunction;
             luaInitialize?.Call();
+            if (fromwatch) luaLoadContent?.Call();
         }
         catch (Exception e)
         {
             currentError = e;
         }
+        finally
+        {
+            reloading = false;
+        }
     }
 
     public void LoadContent()
     {
-        errorFont = game.Content.Load<SpriteFont>("errorfont");
+        errorFont = game.Content.Load<SpriteFont>("arialfont");
         try
         {
             luaLoadContent?.Call();
+
         }
         catch (Exception e)
         {
@@ -87,7 +102,14 @@ public class LuaEngine : IDisposable
 
     public void Update(GameTime gameTime)
     {
-        if (currentError is not null) return;
+        if (forceReload)
+        {
+            forceReload = false;
+            Initialize(true);
+            return;
+        }
+
+        if (ShouldWait()) return;
         try
         {
             luaUpdate?.Call(gameTime);
@@ -100,11 +122,8 @@ public class LuaEngine : IDisposable
 
     public void Draw(GameTime gameTime)
     {
-        if (currentError is not null)
-        {
-            DrawErrorScreen();
-            return;
-        }
+        if (currentError is not null) DrawErrorScreen();
+        if (ShouldWait()) return;
 
         try
         {
@@ -118,14 +137,38 @@ public class LuaEngine : IDisposable
 
     void DrawErrorScreen()
     {
-        if (currentError is null)
+        var exn = currentError;
+        if (exn is null)
             return;
-        Console.WriteLine(currentError);
+
         game.GraphicsDevice.Clear(Color.Black);
-        var error = $"ERROR:{currentError.Message}";
+
+        var exStr = $"{exn}\nInnerException:{exn.InnerException}";
+        var error =
+            string.Join("\n",
+                exStr.Select((c, index) => new {c, index})
+                    .GroupBy(x => x.index/100)
+                    .Select(group => group.Select(elem => elem.c))
+                    .Select(chars => new string(chars.ToArray())));
+
+        if (!showedError)
+        {
+            Console.WriteLine(error);
+            showedError = true;
+        }
         spriteBatch.Begin();
         spriteBatch.DrawString(errorFont, error, Vector2.Zero, Color.White);
         spriteBatch.End();
+    }
+
+    string GetProjectPath(string path = null)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            path = Directory.GetCurrentDirectory();
+
+        return Directory.GetFiles(path, "*.csproj").Any()
+            ? path
+            : GetProjectPath(Directory.GetParent(path)?.FullName);
     }
 
     public void Dispose()
@@ -134,5 +177,6 @@ public class LuaEngine : IDisposable
         watcher.Deleted -= WatcherHandler;
         watcher.Changed -= WatcherHandler;
         watcher.Renamed -= WatcherHandler;
+        lua?.Dispose();
     }
 }
