@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -14,13 +15,36 @@ public class LuaEngine : IDisposable
     Lua lua;
     LuaFunction luaInitialize, luaLoadContent, luaUpdate, luaDraw;
 
+    string luaSrc;
+
+    FileSystemWatcher watcher = new();
     Exception currentError = null;
+
 
     public LuaEngine(Game game, GraphicsDeviceManager graphics, SpriteBatch spriteBatch)
     {
         this.game = game;
         this.graphics = graphics;
         this.spriteBatch = spriteBatch;
+        luaSrc = Path.Combine(Directory.GetCurrentDirectory(), "lua");
+        ConfigureWatcher();
+    }
+
+    void ConfigureWatcher()
+    {
+        watcher.Filter = "*.lua";
+        watcher.Path = luaSrc;
+        watcher.Created += WatcherHandler;
+        watcher.Deleted += WatcherHandler;
+        watcher.Changed += WatcherHandler;
+        watcher.Renamed += WatcherHandler;
+    }
+
+    void WatcherHandler(object sender, FileSystemEventArgs e)
+    {
+        Console.WriteLine("RELOADING...");
+        currentError = null;
+        Initialize();
     }
 
     public void Initialize()
@@ -34,7 +58,8 @@ public class LuaEngine : IDisposable
             lua["spriteBatch"] = spriteBatch;
             lua["content"] = new Content(game);
             lua["game"] = game;
-            lua.DoFile("lua/main.lua");
+            //lua.DoFile("lua/main.lua");
+            lua.DoFile($"{luaSrc}/main.lua");
             luaInitialize = lua["Initialize"] as LuaFunction;
             luaLoadContent = lua["LoadContent"] as LuaFunction;
             luaUpdate = lua["Update"] as LuaFunction;
@@ -44,7 +69,6 @@ public class LuaEngine : IDisposable
         catch (Exception e)
         {
             currentError = e;
-            throw;
         }
     }
 
@@ -106,6 +130,9 @@ public class LuaEngine : IDisposable
 
     public void Dispose()
     {
-
+        watcher.Created -= WatcherHandler;
+        watcher.Deleted -= WatcherHandler;
+        watcher.Changed -= WatcherHandler;
+        watcher.Renamed -= WatcherHandler;
     }
 }
