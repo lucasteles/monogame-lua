@@ -21,7 +21,7 @@ public class LuaEngine : IDisposable
 
     FileSystemWatcher watcher = new();
     Exception currentError;
-    bool showedError, reloading, forceReload;
+    bool showedError,  forceReload;
 
     public LuaEngine(Game game, GraphicsDeviceManager graphics, SpriteBatch spriteBatch)
     {
@@ -32,7 +32,7 @@ public class LuaEngine : IDisposable
         ConfigureWatcher();
     }
 
-    bool ShouldWait() => currentError is not null || reloading;
+    bool ShouldWait() => currentError is not null;
     void ConfigureWatcher()
     {
         watcher.Filter = "*.*";
@@ -45,18 +45,10 @@ public class LuaEngine : IDisposable
         watcher.Changed += WatcherHandler;
     }
 
-    void WatcherHandler(object sender, FileSystemEventArgs e)
-    {
-        Console.WriteLine("RELOADING...");
-        forceReload = true;
-        currentError = null;
-        showedError = false;
-    }
+    void WatcherHandler(object sender, FileSystemEventArgs e) => forceReload = true;
 
-    public void Initialize(bool fromwatch = false)
+    public void Initialize()
     {
-        if (reloading) return;
-        reloading = true;
         try
         {
             lua?.Dispose();
@@ -74,15 +66,10 @@ public class LuaEngine : IDisposable
             luaUpdate = lua["Update"] as LuaFunction;
             luaDraw = lua["Draw"] as LuaFunction;
             luaInitialize?.Call();
-            if (fromwatch) luaLoadContent?.Call();
         }
         catch (Exception e)
         {
             currentError = e;
-        }
-        finally
-        {
-            reloading = false;
         }
     }
 
@@ -104,8 +91,11 @@ public class LuaEngine : IDisposable
     {
         if (forceReload)
         {
-            forceReload = false;
-            Initialize(true);
+            Console.WriteLine("RELOAD FORCED");
+            currentError = null;
+            showedError = forceReload = false;
+            Initialize();
+            luaLoadContent?.Call();
             return;
         }
 
@@ -144,6 +134,11 @@ public class LuaEngine : IDisposable
         game.GraphicsDevice.Clear(Color.Black);
 
         var exStr = $"{exn}\nInnerException:{exn.InnerException}";
+        if (!showedError)
+        {
+            Console.WriteLine(exn);
+            showedError = true;
+        }
         var error =
             string.Join("\n",
                 exStr.Select((c, index) => new {c, index})
@@ -151,11 +146,6 @@ public class LuaEngine : IDisposable
                     .Select(group => group.Select(elem => elem.c))
                     .Select(chars => new string(chars.ToArray())));
 
-        if (!showedError)
-        {
-            Console.WriteLine(error);
-            showedError = true;
-        }
         spriteBatch.Begin();
         spriteBatch.DrawString(errorFont, error, Vector2.Zero, Color.White);
         spriteBatch.End();

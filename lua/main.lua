@@ -4,7 +4,7 @@ import ('Microsoft.Xna.Framework.Input')
 import ('MonoGame.Framework')
 
 local rotation = 0
-local position,logoTexture
+local position,logoTexture,font
 
 function Initialize()
 	game.Window.Title = "Monogame with Lua"
@@ -20,6 +20,7 @@ end
 
 function LoadContent()
 	logoTexture = content:LoadTexture2D("logo")
+	font = content:LoadSpriteFont("zorque")
 end
 
 function MovementDirection(keyboard)
@@ -59,13 +60,12 @@ function Draw(gameTime)
     graphicsDevice:Clear(Color.LightGray)
 
 	spriteBatch:Begin()
-	spriteBatch:Draw(logoTexture,
-					 position,
-					 logoTexture.Bounds,
-					 Color.White,
-					 rotation,
-					 logoCenter,
-					 0.5, -- scale
+
+	spriteBatch:Draw(logoTexture, position, logoTexture.Bounds,
+					 Color.White, rotation, logoCenter, 0.5, -- scale
 					 SpriteEffects.None, 0)
+
+
+	spriteBatch:DrawString(font, "Hello monogame", Vector2(10,5), Color.DarkBlue)
 	spriteBatch:End()
 end

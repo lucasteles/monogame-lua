@@ -32,3 +32,14 @@
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
 /build:arialfont.spritefont
+
+
+#begin zorque.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:zorque.spritefont
+
+#begin zorque.otf
+/copy:zorque.otf
