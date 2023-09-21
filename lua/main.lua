@@ -1,7 +1,7 @@
-import ('Microsoft.Xna.Framework')
-import ('Microsoft.Xna.Framework.Graphics')
-import ('Microsoft.Xna.Framework.Input')
-import ('MonoGame.Framework')
+import 'Microsoft.Xna.Framework'
+import 'Microsoft.Xna.Framework.Graphics'
+import 'Microsoft.Xna.Framework.Input'
+import 'MonoGame.Framework'
 
 local rotation = 0
 local position,logoTexture,font
@@ -16,7 +16,6 @@ function Initialize()
 	local bounds = game.Window.ClientBounds
 	position = Vector2(bounds.Width / 2, bounds.Height / 2)
 end
-
 
 function LoadContent()
 	logoTexture = content:LoadTexture2D("logo")

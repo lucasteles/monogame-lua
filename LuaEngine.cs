@@ -1,27 +1,24 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using NLua;
 
-public class LuaEngine : IDisposable
+sealed class LuaEngine : IDisposable
 {
     readonly Game game;
     readonly GraphicsDeviceManager graphics;
     readonly SpriteBatch spriteBatch;
+    readonly FileSystemWatcher watcher = new();
+    readonly string luaSrc;
 
     SpriteFont errorFont;
     Lua lua;
     LuaFunction luaInitialize, luaLoadContent, luaUpdate, luaDraw;
 
-    string luaSrc;
-
-    FileSystemWatcher watcher = new();
     Exception currentError;
-    bool showedError,  forceReload;
+    bool showedError, forceReload;
 
     public LuaEngine(Game game, GraphicsDeviceManager graphics, SpriteBatch spriteBatch)
     {
@@ -33,6 +30,7 @@ public class LuaEngine : IDisposable
     }
 
     bool ShouldWait() => currentError is not null;
+
     void ConfigureWatcher()
     {
         watcher.Filter = "*.*";
@@ -45,7 +43,14 @@ public class LuaEngine : IDisposable
         watcher.Changed += WatcherHandler;
     }
 
-    void WatcherHandler(object sender, FileSystemEventArgs e) => forceReload = true;
+    void WatcherHandler(object sender, FileSystemEventArgs e)
+    {
+        if (e.Name is null || File.GetAttributes(e.FullPath.TrimEnd('~'))
+                .HasFlag(FileAttributes.Directory))
+            return;
+
+        forceReload = true;
+    }
 
     public void Initialize()
     {
@@ -59,7 +64,7 @@ public class LuaEngine : IDisposable
             lua["spriteBatch"] = spriteBatch;
             lua["content"] = new Content(game);
             lua["game"] = game;
-            //lua.DoFile("lua/main.lua");
+
             lua.DoFile($"{luaSrc}/main.lua");
             luaInitialize = lua["Initialize"] as LuaFunction;
             luaLoadContent = lua["LoadContent"] as LuaFunction;
@@ -79,7 +84,6 @@ public class LuaEngine : IDisposable
         try
         {
             luaLoadContent?.Call();
-
         }
         catch (Exception e)
         {
@@ -91,7 +95,7 @@ public class LuaEngine : IDisposable
     {
         if (forceReload)
         {
-            Console.WriteLine("RELOAD FORCED");
+            Console.WriteLine("Reloding...");
             currentError = null;
             showedError = forceReload = false;
             Initialize();
@@ -139,10 +143,11 @@ public class LuaEngine : IDisposable
             Console.WriteLine(exn);
             showedError = true;
         }
+
         var error =
             string.Join("\n",
                 exStr.Select((c, index) => new {c, index})
-                    .GroupBy(x => x.index/100)
+                    .GroupBy(x => x.index / 100)
                     .Select(group => group.Select(elem => elem.c))
                     .Select(chars => new string(chars.ToArray())));
 
@@ -151,14 +156,15 @@ public class LuaEngine : IDisposable
         spriteBatch.End();
     }
 
-    string GetProjectPath(string path = null)
+    static string GetProjectPath(string path = null)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            path = Directory.GetCurrentDirectory();
+        while (true)
+        {
+            if (string.IsNullOrWhiteSpace(path)) path = Directory.GetCurrentDirectory();
 
-        return Directory.GetFiles(path, "*.csproj").Any()
-            ? path
-            : GetProjectPath(Directory.GetParent(path)?.FullName);
+            if (Directory.GetFiles(path, "*.csproj").Any()) return path;
+            path = Directory.GetParent(path)?.FullName;
+        }
     }
 
     public void Dispose()

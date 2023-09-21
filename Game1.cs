@@ -1,18 +1,15 @@
-﻿using System;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
-using NLua;
 
-public class Game1 : Game
+public sealed class Game1 : Game
 {
-    GraphicsDeviceManager graphics;
+    readonly GraphicsDeviceManager graphics;
     SpriteBatch spriteBatch;
     LuaEngine luaEngine;
 
     public Game1()
     {
-        graphics = new GraphicsDeviceManager(this);
+        graphics = new(this);
         Content.RootDirectory = "Content";
     }
 
@@ -24,10 +21,8 @@ public class Game1 : Game
         base.Initialize();
     }
 
-    protected override void LoadContent()
-    {
+    protected override void LoadContent() =>
         luaEngine.LoadContent();
-    }
 
     protected override void Update(GameTime gameTime)
     {
